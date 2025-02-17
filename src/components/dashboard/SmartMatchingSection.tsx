@@ -58,7 +58,7 @@ const defaultOpportunities: Opportunity[] = [
 
 const SmartMatchingSection = ({
   opportunities = defaultOpportunities,
-  onSignUp = (id) => console.log(`Signed up for opportunity ${id}`),
+  onSignUp = (id: string) => {},
 }: SmartMatchingSectionProps) => {
   return (
     <div className="w-[750px] h-[600px] bg-white p-6 rounded-lg shadow-lg">
@@ -111,8 +111,9 @@ const SmartMatchingSection = ({
                 <Button
                   className="flex items-center gap-2"
                   onClick={() => onSignUp(opportunity.id)}
+                  disabled={opportunity.signedUp}
                 >
-                  Quick Sign-up
+                  {opportunity.signedUp ? "Signed Up" : "Quick Sign-up"}
                   <ArrowRight size={16} />
                 </Button>
               </div>

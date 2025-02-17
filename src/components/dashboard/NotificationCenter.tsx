@@ -50,8 +50,8 @@ const defaultNotifications: Notification[] = [
 
 const NotificationCenter = ({
   notifications = defaultNotifications,
-  onMarkAsRead = () => {},
-  onDismiss = () => {},
+  onMarkAsRead = (id: string) => console.log(`Marking ${id} as read`),
+  onDismiss = (id: string) => console.log(`Dismissing ${id}`),
 }: NotificationCenterProps) => {
   const unreadCount = notifications.filter((n) => !n.read).length;
 

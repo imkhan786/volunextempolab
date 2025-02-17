@@ -1,14 +1,27 @@
 import { Suspense } from "react";
-import { useRoutes, Routes, Route } from "react-router-dom";
+import { useRoutes, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./components/home";
+import Login from "./pages/Login";
+import VerifyEmail from "./pages/VerifyEmail";
+import { useAuth } from "./lib/hooks/useAuth";
 import routes from "tempo-routes";
 
 function App() {
+  const { user } = useAuth();
+
   return (
     <Suspense fallback={<p>Loading...</p>}>
       <>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route
+            path="/"
+            element={user ? <Home /> : <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/login"
+            element={!user ? <Login /> : <Navigate to="/" replace />}
+          />
+          <Route path="/verify-email" element={<VerifyEmail />} />
         </Routes>
         {import.meta.env.VITE_TEMPO === "true" && useRoutes(routes)}
       </>

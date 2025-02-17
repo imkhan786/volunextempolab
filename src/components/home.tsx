@@ -11,10 +11,58 @@ interface HomeProps {
   userAvatar?: string;
 }
 
+import { useNotifications } from "@/lib/hooks/useNotifications";
+
+import { useVolunteerActions } from "@/lib/hooks/useVolunteerActions";
+
 const Home = ({
   userName = "John Doe",
   userAvatar = "https://api.dicebear.com/7.x/avataaars/svg?seed=John",
 }: HomeProps) => {
+  const { notifications, markAsRead, dismissNotification } = useNotifications([
+    {
+      id: "1",
+      title: "New Volunteer Opportunity Match",
+      message:
+        "A new opportunity matching your skills has been found at Local Food Bank",
+      type: "match",
+      timestamp: "2 hours ago",
+      read: false,
+    },
+    {
+      id: "2",
+      title: "Event Update",
+      message: "Beach Cleanup event has been rescheduled to next Saturday",
+      type: "update",
+      timestamp: "1 day ago",
+      read: false,
+    },
+  ]);
+
+  const { opportunities, signUpForOpportunity } = useVolunteerActions([
+    {
+      id: "1",
+      title: "Community Garden Project",
+      organization: "Green Earth Initiative",
+      location: "Central Park",
+      date: "Next Saturday, 9:00 AM",
+      participants: 12,
+      tags: ["Environment", "Gardening", "Community"],
+      description:
+        "Help us maintain and grow our community garden. No experience necessary!",
+    },
+    {
+      id: "2",
+      title: "Food Bank Distribution",
+      organization: "Local Food Bank",
+      location: "Downtown Community Center",
+      date: "Every Tuesday, 2:00 PM",
+      participants: 8,
+      tags: ["Food Security", "Community Service"],
+      description:
+        "Assist in sorting and distributing food to families in need.",
+    },
+  ]);
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardHeader
@@ -37,9 +85,8 @@ const Home = ({
             {/* Left Column */}
             <div className="flex-1 min-w-[750px]">
               <SmartMatchingSection
-                onSignUp={(id) =>
-                  console.log(`Signed up for opportunity ${id}`)
-                }
+                opportunities={opportunities}
+                onSignUp={signUpForOpportunity}
               />
             </div>
 
@@ -48,10 +95,9 @@ const Home = ({
               <ActivityTracker completedHours={24} totalHours={50} />
               <CalendarWidget />
               <NotificationCenter
-                onMarkAsRead={(id) =>
-                  console.log(`Marked notification ${id} as read`)
-                }
-                onDismiss={(id) => console.log(`Dismissed notification ${id}`)}
+                notifications={notifications}
+                onMarkAsRead={markAsRead}
+                onDismiss={dismissNotification}
               />
             </div>
           </div>
