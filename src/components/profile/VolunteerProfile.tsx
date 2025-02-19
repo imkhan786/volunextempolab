@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 import { useSearchParams } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
@@ -85,21 +86,112 @@ export default function VolunteerProfile() {
     updateSkills,
     addCertification,
     updateAvailability,
+    deleteAvailabilitySlot,
+    addNewSkill,
   } = useVolunteerProfile();
+
+  const [categories, setCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      const { data } = await supabase
+        .from("skills")
+        .select("category")
+        .not("category", "is", null);
+
+      const uniqueCategories = Array.from(
+        new Set(data?.map((item) => item.category)),
+      );
+      setCategories(uniqueCategories.sort());
+    };
+
+    loadCategories();
+  }, []);
 
   const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
-    full_name: profile?.full_name || "",
-    location: profile?.location || "",
-    contact_email: profile?.contact_email || "",
-    phone_number: profile?.phone_number || "",
-    bio: profile?.bio || "",
-    employer: profile?.employer || "",
-    employer_program: profile?.employer_program || "",
+    full_name: "",
+    location: "",
+    contact_email: "",
+    phone_number: "",
+    bio: "",
+    employer: "",
+    employer_program: "",
   });
+
+  const [formErrors, setFormErrors] = useState({
+    full_name: "",
+    contact_email: "",
+    phone_number: "",
+  });
+
+  // Update form data when profile loads
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        full_name: profile.full_name || "",
+        location: profile.location || "",
+        contact_email: profile.contact_email || "",
+        phone_number: profile.phone_number || "",
+        bio: profile.bio || "",
+        employer: profile.employer || "",
+        employer_program: profile.employer_program || "",
+      });
+    }
+  }, [profile]);
+
+  const validateForm = () => {
+    const errors = {
+      full_name: "",
+      contact_email: "",
+      phone_number: "",
+    };
+    let isValid = true;
+
+    // Name validation
+    if (!formData.full_name.trim()) {
+      errors.full_name = "Full name is required";
+      isValid = false;
+    } else if (formData.full_name.length < 2) {
+      errors.full_name = "Name must be at least 2 characters long";
+      isValid = false;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.contact_email.trim()) {
+      errors.contact_email = "Email is required";
+      isValid = false;
+    } else if (!emailRegex.test(formData.contact_email)) {
+      errors.contact_email = "Please enter a valid email address";
+      isValid = false;
+    }
+
+    // Phone validation (optional)
+    if (formData.phone_number.trim()) {
+      const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+      if (!phoneRegex.test(formData.phone_number.replace(/[\s-]/g, ""))) {
+        errors.phone_number = "Please enter a valid phone number";
+        isValid = false;
+      }
+    }
+
+    setFormErrors(errors);
+    return isValid;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      toast({
+        title: "Validation Error",
+        description: "Please check the form for errors.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       await updateProfile(formData);
       setEditMode(false);
@@ -156,16 +248,23 @@ export default function VolunteerProfile() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="full_name">Full Name</Label>
-                      <Input
-                        id="full_name"
-                        value={formData.full_name}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            full_name: e.target.value,
-                          })
-                        }
-                      />
+                      <div className="space-y-1">
+                        <Input
+                          id="full_name"
+                          value={formData.full_name}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              full_name: e.target.value,
+                            })
+                          }
+                        />
+                        {formErrors.full_name && (
+                          <p className="text-sm text-destructive">
+                            {formErrors.full_name}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="location">Location</Label>
@@ -179,30 +278,44 @@ export default function VolunteerProfile() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="contact_email">Email</Label>
-                      <Input
-                        id="contact_email"
-                        type="email"
-                        value={formData.contact_email}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            contact_email: e.target.value,
-                          })
-                        }
-                      />
+                      <div className="space-y-1">
+                        <Input
+                          id="contact_email"
+                          type="email"
+                          value={formData.contact_email}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              contact_email: e.target.value,
+                            })
+                          }
+                        />
+                        {formErrors.contact_email && (
+                          <p className="text-sm text-destructive">
+                            {formErrors.contact_email}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone_number">Phone</Label>
-                      <Input
-                        id="phone_number"
-                        value={formData.phone_number}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            phone_number: e.target.value,
-                          })
-                        }
-                      />
+                      <div className="space-y-1">
+                        <Input
+                          id="phone_number"
+                          value={formData.phone_number}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              phone_number: e.target.value,
+                            })
+                          }
+                        />
+                        {formErrors.phone_number && (
+                          <p className="text-sm text-destructive">
+                            {formErrors.phone_number}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -292,8 +405,75 @@ export default function VolunteerProfile() {
 
         <TabsContent value="skills">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Skills & Interests</CardTitle>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add New Skill
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Skill or Interest</DialogTitle>
+                  </DialogHeader>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const formData = new FormData(e.currentTarget);
+                      const name = formData.get("name") as string;
+                      const category = formData.get("category") as string;
+
+                      try {
+                        const newSkill = await addNewSkill(name, category);
+                        await updateSkills([...selectedSkills, newSkill.id]);
+                        toast({
+                          title: "Success",
+                          description: "New skill added and selected.",
+                        });
+                        (e.target as HTMLFormElement).reset();
+                      } catch (error: any) {
+                        toast({
+                          title: "Error",
+                          description: error.message,
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                    className="space-y-4"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="skill-name">Skill Name</Label>
+                      <Input
+                        id="skill-name"
+                        name="name"
+                        required
+                        placeholder="Enter skill name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="skill-category">Category</Label>
+                      <select
+                        id="skill-category"
+                        name="category"
+                        className="w-full p-2 border rounded-md"
+                        required
+                      >
+                        <option value="">Select a category</option>
+                        {categories.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <DialogFooter>
+                      <Button type="submit">Add Skill</Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -354,8 +534,8 @@ export default function VolunteerProfile() {
                         onClick={() => {
                           const newSlot = {
                             day_of_week: dayIndex,
-                            start_time: "09:00",
-                            end_time: "17:00",
+                            start_time: "00:00:00",
+                            end_time: "23:59:00",
                           };
                           updateAvailability([newSlot]);
                         }}
@@ -378,13 +558,13 @@ export default function VolunteerProfile() {
                                   type="time"
                                   value={slot.start_time}
                                   onChange={(e) => {
-                                    const updatedSlots = availability.map(
-                                      (s) =>
-                                        s.id === slot.id
-                                          ? { ...s, start_time: e.target.value }
-                                          : s,
-                                    );
-                                    updateAvailability(updatedSlots);
+                                    if (e.target.value) {
+                                      const updatedSlot = {
+                                        ...slot,
+                                        start_time: e.target.value + ":00",
+                                      };
+                                      updateAvailability([updatedSlot]);
+                                    }
                                   }}
                                 />
                               </div>
@@ -394,13 +574,13 @@ export default function VolunteerProfile() {
                                   type="time"
                                   value={slot.end_time}
                                   onChange={(e) => {
-                                    const updatedSlots = availability.map(
-                                      (s) =>
-                                        s.id === slot.id
-                                          ? { ...s, end_time: e.target.value }
-                                          : s,
-                                    );
-                                    updateAvailability(updatedSlots);
+                                    if (e.target.value) {
+                                      const updatedSlot = {
+                                        ...slot,
+                                        end_time: e.target.value + ":00",
+                                      };
+                                      updateAvailability([updatedSlot]);
+                                    }
                                   }}
                                 />
                               </div>
@@ -410,20 +590,16 @@ export default function VolunteerProfile() {
                               size="icon"
                               className="text-destructive"
                               onClick={async () => {
-                                try {
-                                  await supabase
-                                    .from("availability")
-                                    .delete()
-                                    .eq("id", slot.id);
-
-                                  setAvailability((prev) =>
-                                    prev.filter((s) => s.id !== slot.id),
-                                  );
-                                } catch (err) {
-                                  console.error(
-                                    "Error deleting availability slot:",
-                                    err,
-                                  );
+                                const success = await deleteAvailabilitySlot(
+                                  slot.id,
+                                );
+                                if (!success) {
+                                  toast({
+                                    title: "Error",
+                                    description:
+                                      "Failed to delete time slot. Please try again.",
+                                    variant: "destructive",
+                                  });
                                 }
                               }}
                             >

@@ -52,6 +52,7 @@ export const useVolunteerProfile = () => {
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<VolunteerProfile | null>(null);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [certifications, setCertifications] = useState<Certification[]>([]);
   const [availability, setAvailability] = useState<Availability[]>([]);
@@ -98,10 +99,53 @@ export const useVolunteerProfile = () => {
   const loadSkills = async () => {
     const { data: skillsData, error: skillsError } = await supabase
       .from("skills")
-      .select("*");
+      .select("*")
+      .order("name");
 
     if (skillsError) throw skillsError;
+
+    // Extract unique categories
+    const uniqueCategories = Array.from(
+      new Set(skillsData?.map((skill) => skill.category) || []),
+    );
+    setCategories(uniqueCategories.sort());
+
     return skillsData || [];
+  };
+
+  const addNewSkill = async (name: string, category: string) => {
+    try {
+      setLoading(true);
+
+      // Check if skill already exists (case insensitive)
+      const { data: existingSkill } = await supabase
+        .from("skills")
+        .select("*")
+        .ilike("name", name)
+        .maybeSingle();
+
+      if (existingSkill) {
+        throw new Error("A skill with this name already exists");
+      }
+
+      const { data, error } = await supabase
+        .from("skills")
+        .insert({ name, category })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setSkills((prev) =>
+        [...prev, data].sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      return data;
+    } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadUserSkills = async (profileId: string) => {
@@ -291,26 +335,36 @@ export const useVolunteerProfile = () => {
   };
 
   const updateAvailability = async (
-    availabilityList: Omit<Availability, "id">[],
+    availabilityList: (Availability | Omit<Availability, "id">)[],
   ) => {
     if (!profile) return;
     try {
       setLoading(true);
 
-      // Add new availability slots
-      const { data, error } = await supabase
-        .from("availability")
-        .insert(
-          availabilityList.map((a) => ({
-            volunteer_id: profile.id,
-            day_of_week: a.day_of_week,
-            start_time: a.start_time,
-            end_time: a.end_time,
-          })),
-        )
-        .select();
+      for (const slot of availabilityList) {
+        if ("id" in slot) {
+          // Update existing slot
+          const { error } = await supabase
+            .from("availability")
+            .update({
+              start_time: slot.start_time,
+              end_time: slot.end_time,
+            })
+            .eq("id", slot.id);
 
-      if (error) throw error;
+          if (error) throw error;
+        } else {
+          // Add new slot
+          const { error } = await supabase.from("availability").insert({
+            volunteer_id: profile.id,
+            day_of_week: slot.day_of_week,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+          });
+
+          if (error) throw error;
+        }
+      }
 
       // Load all availability slots after update
       const { data: updatedData, error: loadError } = await supabase
@@ -322,11 +376,32 @@ export const useVolunteerProfile = () => {
 
       if (loadError) throw loadError;
 
-      setAvailability(updatedData);
+      setAvailability(updatedData || []);
       return updatedData;
     } catch (err: any) {
       setError(err.message);
       return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteAvailabilitySlot = async (slotId: string) => {
+    if (!profile) return;
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from("availability")
+        .delete()
+        .eq("id", slotId);
+
+      if (error) throw error;
+
+      setAvailability((prev) => prev.filter((slot) => slot.id !== slotId));
+      return true;
+    } catch (err: any) {
+      setError(err.message);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -345,5 +420,7 @@ export const useVolunteerProfile = () => {
     updateSkills,
     addCertification,
     updateAvailability,
+    deleteAvailabilitySlot,
+    addNewSkill,
   };
 };
