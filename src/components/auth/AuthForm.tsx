@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardHeader,
@@ -17,6 +18,9 @@ type AuthMode = "signin" | "signup" | "forgot";
 
 export default function AuthForm() {
   const [mode, setMode] = useState<AuthMode>("signin");
+  const [userType, setUserType] = useState<
+    "individual" | "organization" | "corporate"
+  >("individual");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { signIn, signUp, resetPassword, loading, error } = useAuth();
@@ -27,7 +31,7 @@ export default function AuthForm() {
     if (mode === "signin") {
       await signIn(email, password);
     } else if (mode === "signup") {
-      await signUp(email, password);
+      await signUp(email, password, userType);
     } else if (mode === "forgot") {
       const success = await resetPassword(email);
       if (success) {
@@ -67,6 +71,22 @@ export default function AuthForm() {
                 />
               </div>
             </div>
+            {mode === "signup" && (
+              <div className="space-y-2">
+                <Label>Account Type</Label>
+                <select
+                  className="w-full p-2 border rounded-md"
+                  value={userType}
+                  onChange={(e) =>
+                    setUserType(e.target.value as typeof userType)
+                  }
+                >
+                  <option value="individual">Individual</option>
+                  <option value="organization">Organization</option>
+                  <option value="corporate">Corporate</option>
+                </select>
+              </div>
+            )}
             {mode !== "forgot" && (
               <div className="space-y-2">
                 <div className="relative">

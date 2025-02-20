@@ -24,7 +24,11 @@ export const useAuth = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    userType: "individual" | "organization" | "corporate",
+  ) => {
     try {
       setLoading(true);
       setError(null);
@@ -35,15 +39,19 @@ export const useAuth = () => {
 
       if (error) throw error;
 
-      // Check if profile exists first
-      const { data: existingProfile } = await supabase
-        .from("volunteer_profiles")
-        .select("id")
-        .eq("user_id", data.user?.id)
-        .maybeSingle();
+      // First create the user record
+      if (!data.user?.id) throw new Error("No user ID found");
 
-      // Only create profile if it doesn't exist
-      if (!existingProfile) {
+      const { error: userError } = await supabase.from("users").insert({
+        id: data.user.id,
+        email,
+        user_type: userType,
+      });
+
+      if (userError) throw userError;
+
+      // Create profile based on user type
+      if (userType === "individual") {
         const { error: profileError } = await supabase
           .from("volunteer_profiles")
           .insert({
@@ -56,7 +64,50 @@ export const useAuth = () => {
             points: 0,
             level: 1,
           });
-
+        if (profileError) throw profileError;
+      } else if (userType === "organization") {
+        // Create organization profile with minimal data first
+        const { error: profileError } = await supabase
+          .from("organization_profiles")
+          .insert({
+            user_id: data.user?.id,
+            name: "",
+            mission: "",
+            description: "",
+            address: "",
+            city: "",
+            state: "",
+            postal_code: "",
+            country: "",
+            contact_email: email,
+            phone_number: "",
+            website: "",
+            organization_type: "",
+            tax_id: "",
+            cause_areas: [],
+            verification_status: "pending",
+            impact_metrics: {
+              total_events: 0,
+              total_volunteers: 0,
+              total_hours: 0,
+            },
+          });
+        if (profileError) throw profileError;
+      } else if (userType === "corporate") {
+        const { error: profileError } = await supabase
+          .from("corporate_profiles")
+          .insert({
+            user_id: data.user?.id,
+            company_name: "",
+            location: "",
+            contact_email: email,
+            phone_number: "",
+            description: "",
+            website: "",
+            industry: "",
+            employee_count: 0,
+            csr_focus_areas: [],
+          });
         if (profileError) throw profileError;
       }
       navigate("/verify-email");
